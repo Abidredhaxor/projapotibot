@@ -1,5 +1,13 @@
 import asyncio
 import os
+
+# 🔴 ফিক্স: Pyrogram ইমপোর্ট করার আগেই Event Loop সেট করে দেওয়া হলো!
+try:
+    loop = asyncio.get_event_loop()
+except RuntimeError:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -180,14 +188,10 @@ async def web_server():
 # ৬. মেইন স্টার্টআপ ফাংশন
 # ==========================================
 async def main():
-    # Render কে খুশি করতে আগে ওয়েব সার্ভার চালু করবো
     await web_server()
-    
-    # ডাটাবেস ইনিশিয়ালাইজেশন
     if await buttons_col.count_documents({}) == 0:
         await buttons_col.insert_many(DEFAULT_GROUPS)
         
-    # বট চালু করা
     await app.start()
     print("🤖 Queen Projapoti Bot is Running Smoothly...")
     
@@ -198,9 +202,6 @@ async def main():
     await app.stop()
 
 if __name__ == "__main__":
-    # Python-এর নতুন ভার্সনের জন্য Event Loop ফিক্স
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(main())
     except KeyboardInterrupt:
