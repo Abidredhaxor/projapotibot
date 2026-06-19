@@ -1,7 +1,9 @@
 import asyncio
+import os
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from motor.motor_asyncio import AsyncIOMotorClient
+from aiohttp import web
 
 # ==========================================
 # ১. ক্রেডেনশিয়ালস এবং কনফিগারেশন
@@ -10,12 +12,10 @@ API_ID = 38733071
 API_HASH = "9e4cb9c28ffe9c07d77c05ebe02b2ca5"
 BOT_TOKEN = "8802637285:AAGPayeuyhxBFEH8CzwqRVI1G768SBUqE60"
 
-# বটের ৩ জন অ্যাডমিন আইডি
 ADMIN_IDS = [8869219008, 8291108314, 8272050428]
 
 MONGO_URI = "mongodb+srv://projapoti_admin:Projapoti1@cluster0.xdcd4ck.mongodb.net/?appName=Cluster0"
 
-# MongoDB সেটআপ
 db_client = AsyncIOMotorClient(MONGO_URI)
 db = db_client["queen_projapoti_db"]
 members_col = db["group_members"]
@@ -27,10 +27,8 @@ app = Client("queen_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 # ==========================================
 # ২. গ্রুপ লিস্ট এবং লজিক ফিল্টার
 # ==========================================
-# শুধু এই ৬টি গ্রুপে লুপ, ওয়েলকাম এবং মেনশন কাজ করবে
 ACTIVE_GROUP_IDS = [-1003628308355, -1003830226952, -1003771108723, -1003752042042, -1003632495992, -1002950867312]
 
-# ডিফল্ট ৮টি গ্রুপ (ইনবক্স বাটনের জন্য)
 DEFAULT_GROUPS = [
     {"name": "Bangladeshi GAY", "url": "https://t.me/+8tjqRErPds5mOTZl"},
     {"name": "Gay Voice Off Bangladesh", "url": "https://t.me/+sFKJ7gtbcIo0MDA9"},
@@ -42,7 +40,6 @@ DEFAULT_GROUPS = [
     {"name": "Orgy / গ্যাংব্যাং House", "url": "https://t.me/+MLQLo5pViGI2NjBl"}
 ]
 
-# আপনার দেওয়া GIF এর ডিরেক্ট লিংক
 GIF_URL = "https://graph.org/file/9167b02374ced565c8375-a3ee659aa8e21277c1.mp4"
 
 # ==========================================
@@ -86,7 +83,7 @@ async def show_all_groups_callback(client, callback_query: CallbackQuery):
     )
 
 # ==========================================
-# ৪. অটো ডিলিট ওয়েলকাম মেসেজ (১-৬ নম্বর গ্রুপে)
+# ৪. অটো ডিলিট ওয়েলকাম মেসেজ
 # ==========================================
 async def auto_delete_message(chat_id, message_id, delay):
     await asyncio.sleep(delay)
@@ -125,13 +122,12 @@ async def welcome_new_members(client, message):
                 caption=welcome_text,
                 reply_markup=reply_markup
             )
-            # ৩ মিনিট (১৮০ সেকেন্ড) পর অটো ডিলিট
             asyncio.create_task(auto_delete_message(message.chat.id, sent_msg.id, 180))
         except Exception as e:
-            print(f"Welcome Message Error: {e}")
+            pass
 
 # ==========================================
-# ৫. প্যাসিভ ডাটা স্ক্র্যাপিং (১-৬ নম্বর গ্রুপে)
+# ৫. প্যাসিভ ডাটা স্ক্র্যাপিং
 # ==========================================
 @app.on_message(filters.group & ~filters.bot, group=1)
 async def passive_member_scraper(client, message):
@@ -143,7 +139,7 @@ async def passive_member_scraper(client, message):
         )
 
 # ==========================================
-# ৬. স্মার্ট ম্যানশন সিস্টেম (/all) - শুধুমাত্র অ্যাডমিনদের জন্য
+# ৬. স্মার্ট ম্যানশন সিস্টেম (/all)
 # ==========================================
 @app.on_message(filters.command("all") & filters.group & filters.user(ADMIN_IDS))
 async def tag_all_members(client, message):
@@ -182,7 +178,7 @@ async def tag_all_members(client, message):
     await app.send_message(message.chat.id, f"✅ মেনশন সম্পন্ন! মোট {count} জনকে ট্যাগ করা হয়েছে।")
 
 # ==========================================
-# ৭. ডাইনামিক বাটন অ্যাড এবং রিমুভ কমান্ড - শুধুমাত্র অ্যাডমিনদের জন্য
+# ৭. বাটন ম্যানেজমেন্ট
 # ==========================================
 @app.on_message(filters.command("addbtn") & filters.private & filters.user(ADMIN_IDS))
 async def add_button(client, message):
@@ -205,11 +201,11 @@ async def del_button(client, message):
         await message.reply_text("❌ বাটন পাওয়া যায়নি।")
 
 # ==========================================
-# ৮. অটো লুপ মেসেজ (১-৬ নম্বর গ্রুপে)
+# ৮. অটো লুপ মেসেজ
 # ==========================================
 async def looping_message_task():
     while True:
-        await asyncio.sleep(3600) # ১ ঘণ্টা পরপর
+        await asyncio.sleep(3600) 
         
         group_buttons = await get_dynamic_buttons()
         bot_info = await app.get_me()
@@ -234,11 +230,26 @@ async def looping_message_task():
                 )
                 await config_col.update_one({"chat_id": chat_id}, {"$set": {"last_loop_msg_id": sent_msg.id}}, upsert=True)
                 await asyncio.sleep(3)
-            except Exception as e:
-                print(f"Loop Error {chat_id}: {e}")
+            except Exception:
+                pass
 
 # ==========================================
-# ৯. স্টার্টআপ ডাটাবেস ইনিশিয়ালাইজেশন
+# ৯. ডামি ওয়েব সার্ভার (Render-এর জন্য)
+# ==========================================
+async def web_server():
+    async def handle(request):
+        return web.Response(text="Bot is Running Smoothly on Render!")
+    
+    app_web = web.Application()
+    app_web.router.add_get('/', handle)
+    runner = web.AppRunner(app_web)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 10000))
+    site = web.TCPSite(runner, '0.0.0.0', port)
+    await site.start()
+
+# ==========================================
+# ১০. স্টার্টআপ
 # ==========================================
 async def init_db():
     count = await buttons_col.count_documents({})
@@ -249,9 +260,15 @@ async def main():
     await init_db()
     await app.start()
     print("🤖 Queen Projapoti Bot is Running Smoothly...")
+    
+    # ব্যাকগ্রাউন্ড টাস্কগুলো চালু করা
     asyncio.create_task(looping_message_task())
+    asyncio.create_task(web_server()) # Render-এর জন্য ডামি সার্ভার
+    
     from pyrogram import idle
     await idle()
+    await app.stop()
 
 if __name__ == "__main__":
-    app.run(main())
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
