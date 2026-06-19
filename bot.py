@@ -180,14 +180,14 @@ async def web_server():
 # ৬. মেইন স্টার্টআপ ফাংশন
 # ==========================================
 async def main():
-    # ধাপ ১: Render কে খুশি করতে আগে ওয়েব সার্ভার চালু করবো
+    # Render কে খুশি করতে আগে ওয়েব সার্ভার চালু করবো
     await web_server()
     
-    # ধাপ ২: ডাটাবেস ইনিশিয়ালাইজেশন
+    # ডাটাবেস ইনিশিয়ালাইজেশন
     if await buttons_col.count_documents({}) == 0:
         await buttons_col.insert_many(DEFAULT_GROUPS)
         
-    # ধাপ ৩: বট চালু করা
+    # বট চালু করা
     await app.start()
     print("🤖 Queen Projapoti Bot is Running Smoothly...")
     
@@ -198,7 +198,10 @@ async def main():
     await app.stop()
 
 if __name__ == "__main__":
+    # Python-এর নতুন ভার্সনের জন্য Event Loop ফিক্স
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        asyncio.run(main())
+        loop.run_until_complete(main())
     except KeyboardInterrupt:
         pass
